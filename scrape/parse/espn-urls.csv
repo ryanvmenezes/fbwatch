@@ -1,0 +1,3 @@
+country,league,season,team.h,team.a,date,scoreh,scorea,matchurl,fpath
+eng,English Premier League,2020-2021,Wolverhampton Wanderers,Liverpool,2021-03-15,0,1,https://espn.com/soccer/report?gameId=578385,scrape/espn/matches/578385.html
+esp,Spanish Primera División,2020-2021,Barcelona,Huesca,2021-03-15,4,1,https://espn.com/soccer/report?gameId=581940,scrape/espn/matches/581940.html

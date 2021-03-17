@@ -7,7 +7,8 @@ source('scrape/utils.R')
 
 seasons = leagues %>%
   mutate(
-    rawhtml = map2(country, fbref, getorretrieve.fbref),
+    fpath = map2_chr(country, fbref, make.path.fbref),
+    rawhtml = map2(country, fpath, get.or.retrieve),
     table = map(
       rawhtml,
       ~.x %>%
@@ -38,9 +39,10 @@ seasonshtml = seasons %>%
     season = Season,
     seasonurl = str_replace(seasonurl, '\\/[a-zA-Z0-9-]*$', '/schedule\\0'),
     seasonurl = str_replace(seasonurl, '-Stats', '-Scores-and-Fixtures'),
+    fpath = map2_chr(country, seasonurl, make.path.fbref),
     rawhtml = pmap(
-      list(country, seasonurl, iscurrentszn),
-      ~getorretrieve.fbref(..1, ..2, override = ..3)
+      list(fpath, seasonurl, iscurrentszn),
+      ~get.or.retrieve(..1, ..2, override = ..3)
     ),
   )
 
@@ -74,23 +76,27 @@ fixtures %>% count()
 fixtures %>% count(season)
 
 played = fixtures %>% 
+  select(-fpath) %>% 
   filter(str_detect(matchurl, 'matches')) %>% 
-  mutate(matchurl = map_chr(matchurl, ~str_c('https://fbref.com', .x)))
+  mutate(
+    matchurl = map_chr(matchurl, ~str_c('https://fbref.com', .x)),
+    fpath = map2_chr(country, matchurl, make.path.fbref)
+  )
 
 played
 
 played %>%  count(season)
 
-played %>% write_csv('scrape/fbref-urls.csv')
+played %>% write_csv('scrape/parse/fbref-urls.csv')
 
 with_progress({
-  p = progressor(along = played$matchurl)
+  p = progressor(along = played$fpath)
   
   walk2(
-    played$country,
+    played$fpath,
     played$matchurl,
     ~{
-      getorretrieve.fbref(.x, .y)
+      get.new(.x, .y)
       p()
     }
   )

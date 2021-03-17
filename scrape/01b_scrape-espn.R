@@ -5,12 +5,12 @@ library(lubridate)
 
 source('scrape/utils.R')
 
-date = str_remove_all(today(), '-')
-# time = str_replace_all(now(), '[-\\s:]', '_')
-
-url = glue('https://www.espn.com/soccer/fixtures/_/date/{date}')
-page = read_html(url)
-page %>% write_html(glue('scrape/espn/sched/{date}.html'))
+# date = str_remove_all(today(), '-')
+date = '2021-03-15' # do removal
+# url = glue('https://www.espn.com/soccer/fixtures/_/date/{date}')
+# page = read_html(url)
+# page %>% write_html(glue('scrape/espn/sched/{date}.html'))
+page = read_html('scrape/espn/sched/20210315.html')
 
 nodes = page %>%
   html_nodes('#sched-container > *')
@@ -48,7 +48,7 @@ parsed = tibble(
       table
     }
   ),
-  links = map2(
+  matchurl = map2(
     nodes,
     class,
     ~{
@@ -76,12 +76,12 @@ parsed = tibble(
         as_tibble(.name_repair = 'unique') %>% 
         mutate(
           score = str_sub(match, start = -5),
-          teamh = str_sub(match, end = -10),
-          teama = str_sub(...2, end = -5),
-          date = today(),
+          team.h = str_sub(match, end = -10),
+          team.a = str_sub(...2, end = -5),
+          date = date,
           score
         ) %>% 
-        select(teamh, teama, date, score) %>% 
+        select(team.h, team.a, date, score) %>% 
         separate(score, sep = ' - ', into = c('scoreh', 'scorea'))
     )
   ) %>% 
@@ -89,16 +89,24 @@ parsed = tibble(
 
 parsed
 
-links = parsed %>%
-  unnest(c(table, links)) %>% 
-  ungroup() %>% 
-  mutate(
-    links = map_chr(links, ~str_c('https://espn.com', .x))
+links = leagues %>%
+  transmute(country, league = name, season = current_szn) %>% 
+  left_join(
+    parsed %>%
+      unnest(c(table, matchurl)) %>% 
+      ungroup() %>% 
+      mutate(
+        matchurl = map_chr(matchurl, ~str_c('https://espn.com', .x)),
+        fpath = map_chr(matchurl, make.path.espn)
+      )  
   )
 
 links
 
-walk(
-  links$links,
-  getorretrieve.espn
+links %>% write_csv('scrape/parse/espn-urls.csv')
+
+walk2(
+  links$fpath,
+  links$matchurl,
+  get.new,
 )
